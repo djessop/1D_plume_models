@@ -80,13 +80,38 @@ def parse_units():
 
 # Density of plain water
 def rho_plain_water(T):
+    '''
+    Returns the temperature-dependent density of plain water.
+
+    Parameters
+    ----------
+    T : scalar float or array-like of floats
+      Temperature in deg C
+
+    Returns
+    -------
+    rho_plain : scalar float or array-like of floats, same dimensions as T
+      Density of plain water in kg/m3
+    '''
     return a[0] + a[1]*T + a[2]*T**2 + a[3]*T**3 + a[4]*T**4
 
 
 # Density increase due to salinity
 def delta_rho(T, s=0.0):
     '''
-    Salinity units must be in g / kg
+    Returns the increase in density due to salinity wrt plain water.
+
+    Parameters
+    ----------
+    T : scalar float or array-like of floats
+      Temperature in deg C
+    s : scalar float or array-like of floats, same dimensions as T
+      Salinity.  Units must be in kg/kg.
+
+    Returns
+    -------
+    delta_rho : scalar float or array-like of floats, same dimensions as T
+      Increase in density due to salinity in kg/m3
     '''
     return (b[0]*s + b[1]*s*T + b[2]*s*T**2 + b[3]*s*T**3 
             + b[4]*s**2*T**2)
@@ -113,19 +138,32 @@ def rho_plain(T, S=None, output_units='cgs', fjac=False):
     return rho_w
 
 
+def drho_plain_water_dT(T):
+    return a[1] + 2*a[2]*T + 3*a[3]*T**2 + 4*a[4]*T**3
+
+
+def drho_plain_water_ds(T):
+    return 0.0
+
+
 def rho_sw(T, S=0.0, output_units='cgs', fjac=False):
     """
     rho_sw defines several functions for the estimation of the density water as 
     a function of both temperature and salinity.
 
-    Inputs:
-    T            Temperature in deg C
-    S            Salinity in ppt
-    output_units  Units system for the output either 'cgs' or 'mks'
-    fjac         Boolean switch to return the analytic jacobian (default False)
+    Parameters
+    ----------
+    T : float or array-like
+      Temperature in deg C
+    S : float or array-like (same dimensions as T)
+      Salinity in ppt
+    output_units : string 
+      Units system for the output, either 'cgs' or 'mks'.  Default is 'cgs'
+    fjac : bool
+      switch to return the analytic jacobian.  Default is False
 
-    Note that the subfunctions use the percentage salinity, whereas the input 
-    salinity is in ppt by default.
+    #Note that the subfunctions use the percentage salinity, whereas the input 
+    #salinity is in ppt by default.
     """
 
     s = S/1e3
@@ -135,20 +173,8 @@ def rho_sw(T, S=0.0, output_units='cgs', fjac=False):
     if output_units == 'cgs':
         rho_sw /= 1e3
         rho_w  /= 1e3
-    # elif output_units == 'mks':
-    #     return (rho_sw, rho_w)
-    # else:
-    #     return (rho_sw, rho_w)    
 
     return rho_sw
-
-
-def drho_plain_water_dT(T):
-    return a[1] + 2*a[2]*T + 3*a[3]*T**2 + 4*a[4]*T**3
-
-
-def drho_plain_water_ds(T):
-    return 0.0
 
 
 def ddelta_rho_dT(T, s=0.0):
@@ -172,7 +198,7 @@ def drho_sw_ds(T, s=0.0):
 if __name__ == "__main__":
     import numpy as np
 
-    from scipy.optimize import newton, curve_fit, fsolve
+    from scipy.optimize import newton
     
     
     # BEGIN
