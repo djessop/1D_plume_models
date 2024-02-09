@@ -69,7 +69,7 @@ def gprimed(x, V, params):
     rho_a = rho_amb(x, V, params)
     rho_b = rho_bulk(x, V, params)
 
-    return -(rho_b - rho_a) / rho_0 * g
+    return (rho_a - rho_b) / rho_0 * g
 
 
 def rho_bulk(x, V, params):
@@ -188,20 +188,22 @@ if __name__ == '__main__':
     plt.grid('both')
 
     Q, M, P  = sol.y
-    b, u, phi = Q / np.sqrt(M), M / Q, P / Q
+    b, u, phi = Q / np.sqrt(np.pi * M), M / Q, P / Q
     gp    = gprimed(sol.t, sol.y, params)
     rho_a = rho_amb(sol.t, sol.y, params)
     rho_b = rho_bulk(sol.t, sol.y, params)
 
-    W = np.vstack([b, u/u0, phi,
-                   #gp,
-                   rho_a, rho_b])
+    W  = np.vstack([b, u/u0, phi,
+                    #gp,
+                    rho_a, rho_b])
+    W0 = W.T[0]
+    W0inv = list(map(lambda x: 1/x, W0))
     plt.subplots()
-    plt.plot(W.T, sol.t, '-')
+    plt.plot(W.T * W0inv, sol.t, '-')
     plt.xlabel(r'Plume parameter')
     plt.ylabel(r'Altitude, $x$')
-    plt.legend((r'$b$', r'$\bar{u}/\bar{u}_0$', r'$\phi$',
-                r'$\rho_a$', r'$\rho_b$'))
+    plt.legend((r'$b/b_0$', r'$\bar{u}/\bar{u}_0$', r'$\phi/\phi_0$',
+                r'$\rho_a/\rho_{a,0}$', r'$\rho_b/\rho_{b,0}$'))
     plt.grid('both')
 
     print(f"Plume predicted to reach {sol.t[-1]:.3f} units)")
