@@ -21,8 +21,7 @@ from SW_Properties.SW_Density import (rho_sw, drho_sw_ds,
                                       drho_sw_dT, rho_plain)
 
 import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
+
 
 
 def derivs(x, V, params):
@@ -128,43 +127,85 @@ def woods2010_derivs(x, V, params=(.1, 1)):
     return dVdx
 
 
+def params_from_dict(expt_conds):
+
+    params = []
+    if 'alpha_e' in expt_conds:
+        params.append(expt_conds['alpha_e'])
+    else:
+        params.append(0.1)
+    if 'N2' in expt_conds:
+        params.append(expt_conds['N2'])
+    else:
+        params.append(1.0)
+    if 'stratification type' in expt_conds:
+        params.append(expt_conds['stratification type'])
+    else:
+        params.append('gradient')
+    if 'phi_0' in expt_conds:
+        params.append(expt_conds['phi_0'])
+    else:
+        params.append(0)
+    if 'rho_b' in expt_conds:
+        params.append(expt_conds['rho_b'])
+    else:
+        params.append(1.01)
+    if 'rho_0' in expt_conds:
+        params.append(expt_conds['rho_0'])
+    else:
+        params.append(1.001)
+    if 'gp0' in expt_conds:
+        params.append(expt_conds['gp0'])
+    else:
+        params.append(-1)
+    
+
+    return tuple(params)
+
+
 if __name__ == '__main__':
-    alpha_e = .1    # entrainement coefficient
-    N2      = .684  # buoyancy frequency/[Hz]
-    p  = (alpha_e, N2)
-    g  = 981        # gravitational field strength/[cm/s2]
-    t0 =  0.        # vent height/[cm]
-    t1 = 50.        # max height of domain/[cm]
-    phi_0 = 0.050   # particle volume fraction at source/[-]
-    rho_w =  .9998  # density of water within plume/[g/cm3]
-    rho_0 = 1.0010  # ambient density at source/[g/cm3]
-    rho_p = 2.5     # density of particles/[g/cm3]
-    r0 =    .4      # source radius/[cm]
-    Q0 =  30.       # source volume flux/[cm3/s]
+    import matplotlib.pyplot as plt
+
+    plot = True
+
+    alpha_e = .1      # entrainement coefficient
+    N2      = .684    # buoyancy frequency/[Hz]
+    p       = (alpha_e, N2)
+    g       = 981     # gravitational field strength/[cm/s2]
+    t0      =  0.     # vent height/[cm]
+    t1      = 50.     # max height of domain/[cm]
+    phi_0   = 0.050   # particle volume fraction at source/[-]
+    rho_w   =  .9998  # density of water within plume/[g/cm3]
+    rho_0   = 1.0010  # ambient density at source/[g/cm3]
+    rho_p   = 2.5     # density of particles/[g/cm3]
+    r0 =    .4        # source radius/[cm]
+    Q0 =  30.         # source volume flux/[cm3/s]
     u0 = Q0 / (np.pi * r0**2) # source velocity/[cm/s]
-    us = 0          # settling velocity/[cm/s]
-    M0 = Q0 * u0    # source momentum flux/[cm4/s2]
-    P0 = phi_0 * Q0 # source particle volume flux/[cm3/s]
+    us = 0            # settling velocity/[cm/s]
+    M0 = Q0 * u0      # source momentum flux/[cm4/s2]
+    P0 = phi_0 * Q0   # source particle volume flux/[cm3/s]
     V0 = (Q0, M0, P0)
     #sol = solve_ivp(derivs, [t0, t1], V0)
     stratification_type = 'gradient'  # 'gradient' or step height value
     gradient = -1.7333e-4
-    params = (alpha_e, us, stratification_type, 
-              gradient, rho_0, rho_w, rho_p, V0, g)
-    rho_b = rho_bulk(0, V0, params)  # source bulk density/[g/cm3]
-    gp0   = gprimed(0, V0, params)   # reduced gravity at source/[cm/s2]
+    params   = (alpha_e, us, stratification_type, 
+                gradient, rho_0, rho_w, rho_p, V0, g)
+    rho_b    = rho_bulk(0, V0, params)  # source bulk density/[g/cm3]
+    gp0      = gprimed(0, V0, params)   # reduced gravity at source/[cm/s2]
 
-    expt_conds = {'alpha_e': p[0],
-                  'N2': p[1],
+    expt_conds = {'alpha_e': alpha_e,
+                  'N2': N2,
                   'stratification type': stratification_type,
+                  'gradient': gradient,
                   'phi_0': phi_0,
                   'rho_b': rho_b,
                   'rho_0': rho_0,
                   'gp0': gp0,
+                  'r0': r0,
                   'Q0': Q0,
-                  'V0': V0,
                   'u0': u0,
-                  'us': us}
+                  'us': us,
+                  'V0': V0}
 
     print(f'alphae = {expt_conds["alpha_e"]}')
     print(f'N2     = {expt_conds["N2"]}')
@@ -174,36 +215,35 @@ if __name__ == '__main__':
     print(f'Q0     = {expt_conds["Q0"]}')
     print(f'u0     = {expt_conds["u0"]:.3f}')
     print(f'us     = {expt_conds["us"]:.3f}')
-    #print(pd.DataFrame.from_dict(expt_conds).to_csv(index=False))
 
     n_steps = 501
     t  = np.linspace(t0, t1, n_steps)
-    #sol = solve_ivp(woods2010_derivs, [t0, t1], V0, t_eval=t, args=(p,))
     sol = solve_ivp(derivs, [t0, t1], V0, t_eval=t, args=(params,))
 
-    # Plot solution
-    plt.close('all')
-    plt.plot(sol.y.T, sol.t, '-')
-    plt.legend(('Q', 'M', 'P'))
-    plt.grid('both')
+    if plot_soln:
+        # Plot solution
+        plt.close('all')
+        plt.plot(sol.y.T, sol.t, '-')
+        plt.legend(('Q', 'M', 'P'))
+        plt.grid('both')
 
-    Q, M, P  = sol.y
-    b, u, phi = Q / np.sqrt(np.pi * M), M / Q, P / Q
-    gp    = gprimed(sol.t, sol.y, params)
-    rho_a = rho_amb(sol.t, sol.y, params)
-    rho_b = rho_bulk(sol.t, sol.y, params)
+        Q, M, P  = sol.y
+        b, u, phi = Q / np.sqrt(np.pi * M), M / Q, P / Q
+        gp    = gprimed(sol.t, sol.y, params)
+        rho_a = rho_amb(sol.t, sol.y, params)
+        rho_b = rho_bulk(sol.t, sol.y, params)
 
-    W  = np.vstack([b, u/u0, phi,
-                    #gp,
-                    rho_a, rho_b])
-    W0 = W.T[0]
-    W0inv = list(map(lambda x: 1/x, W0))
-    plt.subplots()
-    plt.plot(W.T * W0inv, sol.t, '-')
-    plt.xlabel(r'Plume parameter')
-    plt.ylabel(r'Altitude, $x$')
-    plt.legend((r'$b/b_0$', r'$\bar{u}/\bar{u}_0$', r'$\phi/\phi_0$',
-                r'$\rho_a/\rho_{a,0}$', r'$\rho_b/\rho_{b,0}$'))
-    plt.grid('both')
+        W  = np.vstack([b, u/u0, phi,
+                        #gp,
+                        rho_a, rho_b])
+        W0 = W.T[0]
+        W0inv = list(map(lambda x: 1/x, W0))
+        plt.subplots()
+        plt.plot(W.T * W0inv, sol.t, '-')
+        plt.xlabel(r'Plume parameter')
+        plt.ylabel(r'Altitude, $x$')
+        plt.legend((r'$b/b_0$', r'$\bar{u}/\bar{u}_0$', r'$\phi/\phi_0$',
+                    r'$\rho_a/\rho_{a,0}$', r'$\rho_b/\rho_{b,0}$'))
+        plt.grid('both')
 
     print(f"Plume predicted to reach {sol.t[-1]:.3f} units)")

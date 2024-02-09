@@ -196,8 +196,6 @@ def drho_sw_ds(T, s=0.0):
 
 
 if __name__ == "__main__":
-    import numpy as np
-
     from scipy.optimize import newton
     
     
