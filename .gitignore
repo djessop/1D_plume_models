@@ -1,0 +1,15 @@
+*.zip
+*.tgz
+*.pdf
+CarazzoEtal2010/
+CarazzoJellinek2012/
+bentPlumeModels/
+*~
+*.dat*
+*.eps*
+MTT_plume3_DJ.m.orig
+utils.py*
+Stothers1989*
+richardson*
+woods1988/
+uniform_environment_rise_height.py*
