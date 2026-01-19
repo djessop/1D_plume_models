@@ -1,1 +1,1 @@
-{"units": "cgs", "r0": 0.4, "u0": 39.78873577297383, "phi_0": 0.0, "rho_0": 1.0306, "rhoa_0": 1.01, "stratification_type": "gradient", "rhoa_step_height": 20.0, "rhoa_upper": 0.998, "rhoa_gradient": -1.5e-05}
+{"units":"cgs","alphae":0.1,"r0":0.4,"u0":50,"us":0,"phi0":0.01,"rho0":1.05,"rhoa0":1.01,"rhoa_upper":0.998,"rhop":2.5,"s0":15,"supper":0,"uS":"g\/kg","T0":20,"uT":"degC","stratification_type":"step","step_height":20,"gradient":-0.000015}
