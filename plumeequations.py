@@ -276,7 +276,7 @@ def s_profile(x, params):
     
     stratification_type = params[2]
     if stratification_type == 'uniform':
-        return rho * s0
+        return s0
     elif stratification_type == 'step':
         return np.where(x <= H, s0, su)
     elif stratification_type == 'gradient':
@@ -374,7 +374,7 @@ if __name__ == '__main__':
         N2       = - g * gradient   ## Gradient is normalised by either
                                     ## rhoa_0 or s0
 
-    p       = (alpha_e, N2)
+    p        = (alpha_e, N2)
     params   = (alpha_e, us, stratification_type, 
                 gradient, rhoa_0, rhoa_top, rho_p, V0, g,
                 s0, supper, T0)
@@ -389,7 +389,7 @@ if __name__ == '__main__':
     se_conds['N2']     = N2
 
     ### SOLVE SYSTEM AND OUTPUT INFORMATION
-    print(f'strat = {se_conds["stratification_type"]:>8s}')
+    print(f'strat  = {se_conds["stratification_type"]:>7s}')
     print(f'units  = {se_conds["units"]:>7s}')
     print(f'alphae = {se_conds["alphae"]:7.3f}')
     print(f'r0     = {se_conds["r0"]:7.3f}')
@@ -397,6 +397,7 @@ if __name__ == '__main__':
     print(f'us     = {se_conds["us"]:7.3f}')
     print(f'phi0   = {se_conds["phi0"]:7.3f}')
     print(f's0     = {se_conds["s0"]:7.3f}')
+    print(f'supper = {se_conds["supper"]:7.3f}')
     print(f'rhoa_0 = {se_conds["rhoa_0"]:7.3f}')
     print(f'rho_b  = {se_conds["rho_b"]:7.3f}')
     print(f'gp0    = {se_conds["gp0"]:7.3f}')
