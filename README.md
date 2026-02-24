@@ -1,4 +1,4 @@
-# OneDPlumeModels
+# 1D_plume_models
 
 python plumeequations.py [plotsolution=True/False] [souce_and_environmental_conditions_file=source_environmental_conditions.xlsx]
 

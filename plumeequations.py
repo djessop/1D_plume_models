@@ -8,12 +8,34 @@ plumeequations.py
     The ode system to solve is similar to that defined by Morton, Turner & 
     Taylor (1956) for volume flux, q = b**2 * u and momentum flux, 
     m = b**2 * u**2.  However, there is no explicit equation for buoyancy 
-    conservation.  Instead, buoyancy is accounted for through the g' term, which    is calculated at each altitude, x, through a separate function.
-    flux of buoyancy, f = f0.
-      => b = q / np.sqrt(m)
-         u = m / q
-    dq/dx = 2 * alphae * np.sqrt(m)
-    dm/dx = b**2 * g' = q**2 * g' / m = f0 * q / m
+    conservation.  Instead, buoyancy is accounted for through the g' term,
+    which is calculated at each altitude, x, through a separate function.  Here,
+    b is the plume radius, u is the (mean) upward velocity, phi is the
+    volumetric particle concentration and s is the salinity (specific mass
+    concentration of salt).  
+
+    A range of model formulations is proposed:
+        derivs_base_parameters: MTT65
+        woods_2010_derivs: Woods 2010
+        derivs: particle mass flux (including sedimentation) included
+        derivs_buphis: particle and salt mass fluxes included
+
+    Run by itself, the code uses derivs_buphis.
+
+    Each of the models accepts an argument "params", a tuple containing the
+    following parameters: 
+        entrainment_coefficient
+        settling_velocity 
+        stratification_type 
+        gradient/step_height 
+        density_base 
+        density_top
+        density_particle
+        initial_conditions
+
+    When run as a standalone code (i.e. python plumeequations.py), values for
+    these parameters are parsed from a spreadsheet/json file
+    (source_environmental_conditions.xlsx/json).  
 """
 from scipy.integrate import solve_ivp
 from scipy.optimize import newton
@@ -44,6 +66,55 @@ def derivs(x, V, params):
     dVdx[1] = gp * Q**2 / M
     dVdx[2] = 2 * Q / np.sqrt(M) * u_s
     
+    return dVdx
+
+
+def woods2010_derivs(x, V, params=(.1, 1)):
+    '''
+    
+    '''
+    alpha, N2 = params
+
+    Q, M, F = np.array(V)  # structure of soln from solve_ivp is 3xN
+    dVdx    = np.zeros_like(V)
+    dVdx[0] = 2 * alpha * np.sqrt(M)
+    dVdx[1] = F * Q / M
+    dVdx[2] = -N2 * Q
+
+    return dVdx
+
+
+def derivs_base_parameters(x, V, params=(.1, 1)):
+    '''
+    The following equations give exactly the same solution as "woods2010_derivs"
+    using the {b, u, gp} set of parameters, rather than the {Q, M, F} set.
+    '''
+    alphae, N2 = params
+    b, u, gp   = np.array(V)
+
+    dVdx = np.array([2*alphae - 1/2 * b * gp / u**2,  # N.B. b * gp / u**2 = Ri
+                     gp / u   - 2*alphae * u / b,
+                     -N2      - 2*alphae * gp / b])
+    return dVdxw
+
+
+def derivs_buphis(x, V, params=(.1, 0, None)):
+    '''
+    The following equations use the {b, u, phi, s} set of parameters, where the 
+    equations for dphi/dx and ds/dx come from conservation of particle and salt
+    mass.
+    '''
+    alphae, us, *_ = params
+    b, u, phi, s   = np.array(V)
+
+    sa = s_profile(x, params) # ambient_salinity(x, V, params)
+    gp = gprimed_buphis(x, V, params)
+
+    dVdx = np.array([2*alphae - 1/2 * b * gp / u**2,  # N.B. b * gp / u**2 = Ri
+                     gp / u   - 2*alphae * u / b,
+                     2 / b * (us / u - alphae * phi),
+                     2 / b * alphae * (sa - s)])
+                     
     return dVdx
 
 
@@ -138,55 +209,6 @@ def ambient_salinity(x, V, params):
         amb_salinity = newton(target, x0=s0, args=(rho_a, T))
 
     return amb_salinity
-
-
-def woods2010_derivs(x, V, params=(.1, 1)):
-    '''
-    
-    '''
-    alpha, N2 = params
-
-    Q, M, F = np.array(V)  # structure of soln from solve_ivp is 3xN
-    dVdx    = np.zeros_like(V)
-    dVdx[0] = 2 * alpha * np.sqrt(M)
-    dVdx[1] = F * Q / M
-    dVdx[2] = -N2 * Q
-
-    return dVdx
-
-
-def derivs_base_parameters(x, V, params=(.1, 1)):
-    '''
-    The following equations give exactly the same solution as "woods2010_derivs"
-    using the {b, u, gp} set of parameters, rather than the {Q, M, F} set.
-    '''
-    alphae, N2 = params
-    b, u, gp   = np.array(V)
-
-    dVdx = np.array([2*alphae - 1/2 * b * gp / u**2,  # N.B. b * gp / u**2 = Ri
-                     gp / u   - 2*alphae * u / b,
-                     -N2      - 2*alphae * gp / b])
-    return dVdxw
-
-
-def derivs_buphis(x, V, params=(.1, 0, None)):
-    '''
-    The following equations use the {b, u, phi, s} set of parameters, where the 
-    equations for dphi/dx and ds/dx come from conservation of particle and salt
-    mass.
-    '''
-    alphae, us, *_ = params
-    b, u, phi, s   = np.array(V)
-
-    sa = s_profile(x, params) # ambient_salinity(x, V, params)
-    gp = gprimed_buphis(x, V, params)
-
-    dVdx = np.array([2*alphae - 1/2 * b * gp / u**2,  # N.B. b * gp / u**2 = Ri
-                     gp / u   - 2*alphae * u / b,
-                     2 / b * (us / u - alphae * phi),
-                     2 / b * alphae * (sa - s)])
-                     
-    return dVdx
 
 
 def gprimed_buphis(x, V, params):

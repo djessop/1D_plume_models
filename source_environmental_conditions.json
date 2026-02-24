@@ -1,1 +1,1 @@
-{"units":"cgs","alphae":0.1,"r0":0.4,"u0":50,"us":0,"phi0":0.01,"rho0":0.998,"rhoa0":0.998,"rhoa_upper":0.998,"rhop":2.5,"s0":15,"supper":0,"uS":"g\/kg","T0":20,"uT":"degC","stratification_type":"uniform","step_height":20,"gradient":-0.000015}
+{"units":"cgs","alphae":0.1,"r0":0.4,"u0":50,"us":0,"phi0":0.01,"rho0":0.998,"rhoa0":0.998,"rhoa_upper":0.998,"rhop":2.5,"s0":15,"supper":0,"uS":"g\/kg","T0":20,"uT":"degC","stratification_type":"step","step_height":20,"gradient":-0.000015}
