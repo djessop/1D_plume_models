@@ -1,6 +1,6 @@
 # 1D_plume_models
 
-python plumeequations.py [plotsolution=True/False] [souce_and_environmental_conditions_file=source_environmental_conditions.xlsx]
+python plumeequations.py [plot_soln (0/1)] [souce_and_environmental_conditions_file (source_environmental_conditions.xlsx/source_environmental_conditions.json)]
 
 Predicts the rise height, width etc. of experimental plumes.
 

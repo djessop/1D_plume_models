@@ -47,14 +47,14 @@ import numpy as np
 
 def derivs(x, V, params):
     ''' Order of params: 
-    entrainment_coefficient,
-    settling_velocity, 
-    stratification_type, 
-    gradient/step_height, 
-    density_base, 
-    density_top,
-    density_particle,
-    initial_conditions,
+    entrainment_coefficient
+    settling_velocity 
+    stratification_type 
+    gradient/step_height 
+    density_base 
+    density_top
+    density_particle
+    initial_conditions
     '''
     Q, M, P  = V
     alpha = params[0]
@@ -311,6 +311,9 @@ def check_se_conds(se_conds_fname):
     import pandas as pd
 
     se_conds_file, ext = se_conds_fname.split('.')
+
+    # print(f'Source conditions file is of type {ext}\n')
+
     if ext == 'json':
         with open(se_conds_fname, 'r') as f:
             se_conds = json.load(f)
@@ -352,10 +355,15 @@ if __name__ == '__main__':
     plot_soln = False
     se_conds_fname = 'source_environmental_conditions.xlsx'
 
-    if len(sys.argv) > 2:
-        plot_soln = bool(sys.argv[2])
-    if len(sys.argv) > 3:
-        se_conds_fname = sys.argv[3]
+    print(sys.argv, f'len: {len(sys.argv)}')
+
+    if len(sys.argv) > 0:
+        if sys.argv[1].lower == 'yes' or sys.argv[1].lower == '1':
+            plot_soln = True
+    if len(sys.argv) > 1:
+        se_conds_fname = sys.argv[2]
+    
+    print(plot_soln)
 
     se_conds = check_se_conds(se_conds_fname)
 
@@ -431,9 +439,9 @@ if __name__ == '__main__':
     t       = np.linspace(t0, t1, n_steps)
     sol     = solve_ivp(derivs_buphis, [t0, t1], V0, t_eval=t, args=(params,))
     #sol = solve_ivp(derivs, [t0, t1], V0, t_eval=t, args=(params,))
-    
+    H_pred  = sol.t[-1]
     print("-" * 22)
-    print(f"H_pred = {sol.t[-1]:7.3f} units")
+    print(f"H_pred = {H_pred:7.3f} units")
 
     if plot_soln:
         # Plot solution
