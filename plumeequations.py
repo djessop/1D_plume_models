@@ -6,7 +6,7 @@ plumeequations.py
     with arbitrary stratification.  
 
     The ode system to solve is similar to that defined by Morton, Turner & 
-    Taylor (1956) for volume flux, q = b**2 * u and momentum flux, 
+    Taylor (1956) for volume flux, q = b**2 * u and specific momentum flux, 
     m = b**2 * u**2.  However, there is no explicit equation for buoyancy 
     conservation.  Instead, buoyancy is accounted for through the g' term,
     which is calculated at each altitude, x, through a separate function.  Here,
@@ -15,8 +15,8 @@ plumeequations.py
     concentration of salt).  
 
     A range of model formulations is proposed:
-        derivs_base_parameters: MTT65
-        woods_2010_derivs: Woods 2010
+        woods_2010_derivs: Woods 2010 formulation for q, m and f
+        derivs_base_parameters: as per Woods 2010 but in terms of b, u and g'
         derivs: particle mass flux (including sedimentation) included
         derivs_buphis: particle and salt mass fluxes included
 
@@ -71,7 +71,7 @@ def derivs(x, V, params):
 
 def woods2010_derivs(x, V, params=(.1, 1)):
     '''
-    
+    Returns the derivatives of the plume equations as defined in Woods (2010)
     '''
     alpha, N2 = params
 
