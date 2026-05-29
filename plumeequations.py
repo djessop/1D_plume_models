@@ -39,6 +39,7 @@ plumeequations.py
 """
 from scipy.integrate import solve_ivp
 from scipy.optimize import newton
+from datetime import datetime as dt
 from sw_properties import (rho_sw, drho_sw_ds,
                            drho_sw_dT, rho_plain)
 
@@ -107,7 +108,7 @@ def derivs_buphis(x, V, params=(.1, 0, None)):
     alphae, us, *_ = params
     b, u, phi, s   = np.array(V)
 
-    sa = s_profile(x, params) # ambient_salinity(x, V, params)
+    sa = ambient_salinity(x, V, params)  # s_profile(x, params)
     gp = gprimed_buphis(x, V, params)
 
     dVdx = np.array([2*alphae - 1/2 * b * gp / u**2,  # N.B. b * gp / u**2 = Ri
@@ -116,6 +117,20 @@ def derivs_buphis(x, V, params=(.1, 0, None)):
                      2 / b * alphae * (sa - s)])
                      
     return dVdx
+
+
+def convert_bugp_qmf(x, V, params=(.1, 1, None)):
+    b, u, gp = np.array(V)
+    q, m, f  = b**2 * u, b**2 * u**2, b**2 * u * gp
+
+    return np.array([q, m, f])
+
+
+def convert_qmf_bugp(x, V, params=(.1, 1, None), include_pi=False):
+    q, m, f  = np.array(V)
+    b, u, gp = q / np.sqrt(m), m / q, f / q
+
+    return np.array([b, u, gp])
 
 
 def gprimed(x, V, params):
@@ -174,19 +189,21 @@ def rho_amb(x, V, params):
     
     stratification_type = params[2]
     if stratification_type == 'uniform':
-        rho_a = params[4]  # "rho_base"
+        rho_a       = params[4]  # "rho_base"
     elif stratification_type == 'gradient':
-        gradient = params[3]
-        rho_base = params[4]
-        rho_a = rho_base + x * gradient
+        gradient    = params[3]
+        rho_base    = params[4]
+        rho_a       = rho_base + x * gradient
     elif stratification_type == 'step':
         step_height = params[3]
         rho_base    = params[4]
         rho_top     = params[5]
-        s0          = params[9]
-        supper      = params[10]
+        s0          = params[9]   # s0 for plume, not tank
+        sa0         = params[10]
+        supper      = params[11]  
         s           = np.where(x < step_height, s0, supper)
-        rho_a       = rho_sw(20, s)
+        T0          = params[12]
+        rho_a       = rho_sw(T0, s)
     else:
         raise NameError('Unknown stratification type')
     return rho_a
@@ -194,8 +211,10 @@ def rho_amb(x, V, params):
 
 def ambient_salinity(x, V, params):
     rho_a = rho_amb(x, V, params)
+    if not isinstance(x, (np.ndarray, list)) and x == 0:
+        rho_a = params[4]
 
-    T, s0 = 20., 20.
+    T, s0 = params[12], 0   # 20., 20.
 
     def target(s, x, T):
         return rho_sw(T, s) - x
@@ -240,20 +259,6 @@ def rho_bulk_buphis(x, V, params):
     return (1 - phi) * rho_sw(T, s) + phi * rho_s
 
 
-def convert_bugp_qmf(x, V, params=(.1, 1, None)):
-    b, u, gp = np.array(V)
-    q, m, f  = b**2 * u, b**2 * u**2, b**2 * u * gp
-
-    return np.array([q, m, f])
-
-
-def convert_qmf_bugp(x, V, params=(.1, 1, None), include_pi=False):
-    q, m, f  = np.array(V)
-    b, u, gp = q / np.sqrt(m), m / q, f / q
-
-    return np.array([b, u, gp])
-
-
 def params_from_dict(expt_conds):
     # to be rewritten taking new order into account
     params = []
@@ -291,19 +296,20 @@ def params_from_dict(expt_conds):
 
 
 def s_profile(x, params):
-    H  = params[3]  # se_conds['step_height']
-    s0 = params[9]  # se_conds['s0']
-    su = params[10] # se_conds['supper']
-    T0 = params[11] 
-    
+    H  = params[3]   # se_conds['step_height']
+    ra = params[4]   # se_conds['rhoa_0']
+    sa = params[10]  # se_conds['sa0']
+    su = params[11]  # se_conds['supper']
+    T0 = params[12]  # se_conds['T0']
+    #sa = ambient_salinity(x, [0, 0, 0], params)
+
     stratification_type = params[2]
     if stratification_type == 'uniform':
         return s0
     elif stratification_type == 'step':
-        return np.where(x <= H, s0, su)
+        return np.where(x <= H, sa, su)
     elif stratification_type == 'gradient':
         return 
-
 
 
 def check_se_conds(se_conds_fname):
@@ -352,38 +358,39 @@ if __name__ == '__main__':
     import sys
     import json
     
-    plot_soln = False
+    plot_soln = True
     se_conds_fname = 'source_environmental_conditions.xlsx'
 
-    print(sys.argv, f'len: {len(sys.argv)}')
+    # print(sys.argv, f'len: {len(sys.argv)}')
 
     if len(sys.argv) > 0:
-        if sys.argv[1].lower == 'yes' or sys.argv[1].lower == '1':
-            plot_soln = True
+        if (sys.argv[1].lower == 'no' or sys.argv[1].lower == '0'
+            or sys.argv[1].lower == 'false'):
+            plot_soln = False
     if len(sys.argv) > 1:
         se_conds_fname = sys.argv[2]
-    
-    print(plot_soln)
+
+    print(se_conds_fname)
 
     se_conds = check_se_conds(se_conds_fname)
-
-    g       = 981   		  # gravitational field strength/[cm/s2]
-    alpha_e = se_conds['alphae']  # entrainement coefficient
-    phi0    = se_conds['phi0']    # particle volume fraction at source/[-]
-    rhoa0   = se_conds['rhoa0']   # ambient density at source/[g/cm3]
-    rho_p   = se_conds['rhop']    # density of particles/[g/cm3]
-    r0      = se_conds['r0']      # source radius/[cm]
-    u0      = se_conds['u0']      # source velocity/[cm/s]
-    us      = se_conds['us']      # settling velocity/[cm/s]
-    s0      = se_conds['s0']      # plume salinity at source
-    supper  = se_conds['supper']  # plume salinity in upper portion of tank
-    uS      = se_conds['uS']      # units of salinity/[g/kg, ppt, kg/kg]
-    T0      = se_conds['T0']      # temperature at source
-    uT      = se_conds['uT']      # units of temperature/[°C or K]
-    Q0      = np.pi * r0**2 * u0  # source volume flux/[cm3/s]
-    M0      = Q0 * u0             # source momentum flux/[cm4/s2]
-    P0      = phi0 * Q0           # source particle volume flux/[cm3/s]
-    V0      = (r0, u0, phi0, s0)  # (Q0, M0, P0)
+    g        = 981   		   # gravitational field strength/[cm/s2]
+    alpha_e  = se_conds['alphae']  # entrainement coefficient
+    phi0     = se_conds['phi0']    # particle volume fraction at source/[-]
+    rhoa0    = se_conds['rhoa0']   # ambient density at source/[g/cm3]
+    rho_p    = se_conds['rhop']    # density of particles/[g/cm3]
+    r0       = se_conds['r0']      # source radius/[cm]
+    u0       = se_conds['u0']      # source velocity/[cm/s]
+    us       = se_conds['us']      # settling velocity/[cm/s]
+    s0       = se_conds['s0']      # plume salinity at source
+    sa0      = se_conds['sa0']     # salinity at base of tank
+    supper   = se_conds['supper']  # salinity in upper portion of tank
+    uS       = se_conds['uS']      # units of salinity/[g/kg, ppt, kg/kg]
+    T0       = se_conds['T0']      # temperature at source
+    uT       = se_conds['uT']      # units of temperature/[°C or K]
+    Q0       = np.pi * r0**2 * u0  # source volume flux/[cm3/s]
+    M0       = Q0 * u0             # source momentum flux/[cm4/s2]
+    P0       = phi0 * Q0           # source particle volume flux/[cm3/s]
+    V0       = (r0, u0, phi0, s0)  # (Q0, M0, P0)
 
     stratification_type = se_conds['stratification_type']
     if stratification_type == 'uniform':
@@ -394,7 +401,7 @@ if __name__ == '__main__':
         supper   = s0
     elif stratification_type == 'step':
         gradient = se_conds['step_height'] # takes role of step_height
-        rhoa_0   = rho_sw(T0, s0)     # se_conds['rhoa0']
+        rhoa_0   = se_conds['rhoa0']  # rho_sw(T0, s0)
         rhoa_top = rho_sw(T0, supper) # se_conds['rhoa_upper']
         N2       = g * (rhoa_0 - rhoa_top) 
     elif stratification_type == 'gradient':
@@ -403,13 +410,13 @@ if __name__ == '__main__':
         rhoa_top = 0.998
         N2       = - g * gradient   ## Gradient is normalised by either
                                     ## rhoa_0 or s0
-
     p        = (alpha_e, N2)
     params   = (alpha_e, us, stratification_type, 
                 gradient, rhoa_0, rhoa_top, rho_p, V0, g,
-                s0, supper, T0)
+                s0, sa0, supper, T0)
     rho_b    = rho_bulk_buphis(0, V0, params)  # source bulk density/[g/cm3]
     gp0      = gprimed_buphis(0, V0, params)   # g' at source/[cm/s2]
+    #sa0      = ambient_salinity(0, V0, params)
 
     se_conds['gp0']    = gp0
     se_conds['rho_b']  = rho_b
@@ -417,8 +424,10 @@ if __name__ == '__main__':
     se_conds['Q0']     = Q0
     se_conds['V0']     = V0
     se_conds['N2']     = N2
+    #se_conds['sa0']    = sa0
 
     ### SOLVE SYSTEM AND OUTPUT INFORMATION
+    print("-" * 16)
     print(f'strat  = {se_conds["stratification_type"]:>7s}')
     print(f'units  = {se_conds["units"]:>7s}')
     print(f'alphae = {se_conds["alphae"]:7.3f}')
@@ -427,6 +436,7 @@ if __name__ == '__main__':
     print(f'us     = {se_conds["us"]:7.3f}')
     print(f'phi0   = {se_conds["phi0"]:7.3f}')
     print(f's0     = {se_conds["s0"]:7.3f}')
+    print(f'sa0    = {se_conds["sa0"]:7.3f}')
     print(f'supper = {se_conds["supper"]:7.3f}')
     print(f'rhoa_0 = {se_conds["rhoa_0"]:7.3f}')
     print(f'rho_b  = {se_conds["rho_b"]:7.3f}')
@@ -440,20 +450,30 @@ if __name__ == '__main__':
     sol     = solve_ivp(derivs_buphis, [t0, t1], V0, t_eval=t, args=(params,))
     #sol = solve_ivp(derivs, [t0, t1], V0, t_eval=t, args=(params,))
     H_pred  = sol.t[-1]
-    print("-" * 22)
-    print(f"H_pred = {H_pred:7.3f} units")
+    print("-" * 16)
+    print(f"H_pred = {H_pred:7.3f}")
+    print("-" * 16)
+
+    sol.y[2] *= 100  # particle concentration in %
 
     if plot_soln:
         # Plot solution
         plt.close('all')
         
         plt.plot(sol.y.T, sol.t, '-')
-        plt.legend((r'$b$', r'$\bar{u}$', r'$\phi$', r'$s$'))
+        plt.plot(s_profile(sol.t, params), sol.t, '--C3', lw=.8)
+        plt.legend((r'$b$', r'$\bar{u}$', r'$\phi \times 100$', 
+                    r'$s$', r'$s_a$'))
         plt.grid('both')
 
         plt.xlabel(r'Plume parameter', size='large')
         plt.ylabel(r'Altitude, $x$', size='large')
         # plt.legend((r'$b/b_0$', r'$\bar{u}/\bar{u}_0$', r'$\phi/\phi_0$',
         #             r'$\rho_a/\rho_{a,0}$', r'$\rho_b/\rho_{b,0}$'))
-        # plt.grid('both')
+        plt.grid('both')
         plt.show()
+
+    # Save solution
+    fname = f"plumeequations_soln_{dt.now().strftime('%Y%m%d-%H%M')}.npz"
+    with open(fname, 'wb') as f:
+        np.savez(f, sol)
